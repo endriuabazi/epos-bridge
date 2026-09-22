@@ -1,0 +1,21 @@
+{
+  "listenHost": "0.0.0.0",
+  "printerHost": "192.168.1.100",
+  "printerPort": 9100,
+  "invertImage": false,
+  "rasterBandRows": 64,
+  "feedLinesBeforeCut": 4,
+  "cutType": "partial",
+  "codePage": 16,
+  "textEncoding": "latin1",
+  "tls": {
+    "keyFile": "certs/key.pem",
+    "certFile": "certs/cert.pem",
+    "enabled": true,
+    "pfxFile": "certs/bridge.pfx",
+    "passphrase": "epos"
+  },
+  "logJobs": true,
+  "dumpPayloads": false,
+  "listenPort": 443
+}
