@@ -5,6 +5,7 @@
   "invertImage": false,
   "rasterBandRows": 24,
   "feedLinesBeforeCut": 4,
+  "cutDelayMsPer100Rows": 100,
   "cutType": "partial",
   "codePage": 16,
   "textEncoding": "latin1",

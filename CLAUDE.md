@@ -68,6 +68,16 @@ Load-bearing decisions, none of them obvious from a single function:
 - **Jobs are serialized.** `printQueue` is a promise chain — one TCP connection at a time,
   and it continues after a failed job. Anything new that writes to the printer must go
   through `enqueuePrint`, never `sendToPrinter` directly.
+- **The cut is held back on purpose.** The OCPP-80H executes `GS V` the moment it reads
+  it, even while image rows it already received are still printing, so a long bill used to
+  be cut above its QR code. `translate` therefore returns `segments`: content + feed go out
+  at once, and only the cut follows after `cutDelayMs()` (image rows + feed dots, scaled by
+  `cutDelayMsPer100Rows`, floor `cutDelayMinMs`). `sendToPrinter` writes the segments in
+  order and suspends the socket idle timeout during the wait. Don't merge the cut back
+  into one write, and don't treat the feed as a fix — extra feed never moved the cut.
+- The timer is a guess because the printer cannot report print completion: `DLE EOT`,
+  `GS r 1` and `GS ( H` are all answered on receipt (~0.8 s into a ~1 s bill), and `GS ( H`
+  makes it reset the TCP connection. Don't retry a status-based cut.
 - `translate` appends a feed + cut when the payload contained no `<cut>` (`sawCut`).
 - **Config layering:** `DEFAULTS` in `server.js` is authoritative; `config.json` is a
   partial overlay (`tls` merged one level deep), then env vars. A new option needs a
@@ -83,5 +93,12 @@ Load-bearing decisions, none of them obvious from a single function:
   Odoo actually sent.
 - Tuning knobs map to physical symptoms: `invertImage` (solid black / negative output),
   `rasterBandRows` (long tickets truncated or garbled — small printer buffer),
-  `feedLinesBeforeCut` (cut slicing the last lines), `codePage` (ë/ç garbled; affects
-  plain-text jobs only, since Odoo's images render accents as pixels).
+  `feedLinesBeforeCut` (footer not pushed past the cutter, or too much blank paper),
+  `cutDelayMsPer100Rows` (cut lands above the QR/footer → raise it; long pause before the
+  cut → lower it; deployed at 100, default 400), `cutDelayMinMs` (same, for short/text
+  jobs), `codePage` (ë/ç garbled; affects plain-text jobs only, since Odoo's images render
+  accents as pixels).
+- The bridge runs as the `epos-bridge` scheduled task, so code and `config.json` changes
+  only apply after `Stop-ScheduledTask -TaskName epos-bridge; Start-ScheduledTask -TaskName
+  epos-bridge` — confirm a new `started:` line in `logs/bridge.log`. The job log line shows
+  the applied `cutDelay:`.
