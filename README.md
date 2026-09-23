@@ -3,6 +3,9 @@
 A small translator that lets Odoo POS print to a cheap thermal printer that
 isn't a real Epson.
 
+> **Just need to restart, check or test the bridge?** Go to
+> [Daily use](#daily-use-windows).
+
 ---
 
 ## Why this exists
@@ -242,19 +245,116 @@ above.
 
 ---
 
-## Keeping it running on Windows
+## Daily use (Windows)
 
-Create `start-bridge.bat` next to `server.js`:
+On this PC the bridge runs by itself in the background as a Windows
+**scheduled task** called `epos-bridge`. It starts when the PC boots, with no
+window, and restarts itself if it crashes. You normally don't have to do
+anything.
 
-```bat
-@echo off
-cd /d "%~dp0"
+### Where to type the commands
+
+1. Click **Start**, type `PowerShell`.
+2. Right-click **Windows PowerShell** (or **PowerShell 7**) → **Run as
+   administrator** → **Yes**.
+3. Go to the project folder. Paste this and press Enter:
+
+   ```powershell
+   cd "C:\Users\Dell\Downloads\Printer Adaptor"
+   ```
+
+Every command below is pasted into that window. Restarting needs the
+**administrator** window; the checks and tests work in a normal one too.
+
+### Restart the bridge
+
+Do this after **any** change to `config.json` or `server.js`. Until you
+restart, the bridge keeps running the old version.
+
+```powershell
+Stop-ScheduledTask -TaskName epos-bridge; Start-ScheduledTask -TaskName epos-bridge
+```
+
+Then check it really restarted: the last `started:` line in the log must show
+the current time (the log uses UTC, so in summer it reads 2 hours behind
+Albanian time).
+
+```powershell
+Get-Content .\logs\bridge.log -Tail 5
+```
+
+### Check it is running
+
+```powershell
+Get-ScheduledTask -TaskName epos-bridge        # State should be: Running
+curl.exe -k https://localhost/health           # should print {"ok":true,...}
+Test-NetConnection -ComputerName 192.168.1.100 -Port 9100   # TcpTestSucceeded : True = printer reachable
+```
+
+### Test a print
+
+Without Odoo. This sends a text ticket and an image ticket (the image is the
+format Odoo really uses):
+
+```powershell
+$env:BRIDGE = "https://localhost"; node test-print.js both
+```
+
+Both lines should say `PRINTED OK`, and two tickets should come out, each cut
+at the end. You can also open <https://localhost> in the browser and click
+**Send a test receipt**.
+
+With Odoo: print a bill from the POS. It should come out completely down to
+"Powered by Odoo", pause for about a second, then cut below it. Every job
+leaves a line in the log:
+
+```powershell
+Get-Content .\logs\bridge.log -Tail 5
+```
+
+A healthy job looks like
+`job: 63126 bytes -> 192.168.1.100:9100 (images:1 ... cuts:1 ... cutDelay:1101ms)`.
+A line starting with `!` is an error.
+
+### Run it by hand (for debugging)
+
+Stop the task first. Otherwise both copies fight over port 443 and the second
+fails with *"Port 443 is already taken"*.
+
+```powershell
+Stop-ScheduledTask -TaskName epos-bridge
 node server.js
 ```
 
-Then either drop a shortcut to it in
-`shell:startup` (Win+R → `shell:startup`), or register it as a real service
-with [NSSM](https://nssm.cc) so it survives logout and restarts itself.
+It now prints everything live in that window. Press **Ctrl+C** to stop it,
+then give control back to the task:
+
+```powershell
+Start-ScheduledTask -TaskName epos-bridge
+```
+
+### Install or remove the scheduled task
+
+Only needed on a new PC, or if the project folder moves:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-task.ps1              # install / reinstall
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-task.ps1 -Uninstall   # remove
+```
+
+### Cut settings (`config.json`)
+
+The printer cuts the moment it reads the cut command, even if it is still
+printing. So the bridge sends the ticket first and waits before sending the
+cut. The wait grows with the length of the ticket.
+
+| Setting | Now | What it does |
+|---|---|---|
+| `cutDelayMsPer100Rows` | `100` | Wait per 100 dot rows of ticket. **Cut lands too early** (above the QR code or footer) → raise it (150, 200). **Pause before the cut feels too long** → lower it. |
+| `cutDelayMinMs` | `500` (default) | Shortest wait, used for short or text-only tickets. |
+| `feedLinesBeforeCut` | `4` | Blank lines fed after the ticket so the footer passes the blade. More lines = more blank paper; it does **not** change when the cut happens. |
+
+After changing any of them, [restart the bridge](#restart-the-bridge).
 
 ---
 
@@ -279,8 +379,16 @@ set `"invertImage": true`.
 **Long tickets get cut off or turn to garbage halfway** — the printer's
 buffer is small. Lower `"rasterBandRows"` to `32` or `24`.
 
-**The cut happens too high, slicing the last lines** — raise
-`"feedLinesBeforeCut"`.
+**The cut happens in the middle of the ticket (above the QR code or footer)**
+— the printer cut before it finished printing. Raise `"cutDelayMsPer100Rows"`
+(see [Cut settings](#cut-settings-configjson)), then restart the bridge.
+
+**The ticket prints fully but the footer is cut through** — raise
+`"feedLinesBeforeCut"` by 1–2.
+
+**I changed `config.json` but nothing is different** — the bridge wasn't
+restarted. See [Restart the bridge](#restart-the-bridge) and check for a new
+`started:` line in `logs\bridge.log`.
 
 **Albanian characters (ë, ç) print as junk** — try other `codePage` values.
 `16` is WPC1252; some clones want `0` (CP437), `18` (CP852) or `47`
@@ -336,6 +444,9 @@ Things worth adding next:
 | `server.js` | The bridge. Run this. |
 | `config.json` | Printer address and tuning. |
 | `test-print.js` | Pretends to be Odoo; verifies the bridge without Odoo. |
+| `install-task.ps1` | Windows: installs/removes the `epos-bridge` scheduled task. |
+| `setup-tls.ps1` | Windows: creates and trusts the HTTPS certificate. |
+| `logs/bridge.log` | What the bridge did: starts, jobs, errors. |
 | `setup-omnilink.ps1` | Windows: certificate + hosts entry for the Epson domain scheme. |
 | `epson-domain.js` | Shows the hostname Odoo derives from a serial. |
 | `README.md` | This file. |

@@ -132,3 +132,7 @@
 2026-09-23T08:43:44.320Z job: 57918 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1020ms)
 2026-09-23T08:44:15.588Z POST /cgi-bin/epos/service.cgi (126017 chars) from 127.0.0.1
 2026-09-23T08:44:15.589Z job: 94782 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1593ms)
+2026-09-23T08:53:05.045Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-23T08:53:05.046Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:674ms)
+2026-09-23T08:53:24.257Z POST /cgi-bin/epos/service.cgi (90521 chars) from 127.0.0.1
+2026-09-23T08:53:24.258Z job: 68022 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1177ms)
