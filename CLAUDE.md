@@ -51,8 +51,30 @@ Request path: `requestHandler` → `readBody` → `handlePrint` → `translate` 
 
 Load-bearing decisions, none of them obvious from a single function:
 
-- **Every POST is a print job.** The URL path is ignored except `/test-print`; the bridge
-  answers on whatever path the client uses. Don't add routing that rejects unknown paths.
+- **Every POST is a print job.** The URL path is ignored except `/test-print` (`?kind=image`
+  for the raster test, reusing `imageTicket` exported by `test-print.js`) and `/admin/*`;
+  the bridge answers on whatever path the client uses. Don't add routing that rejects
+  unknown paths.
+- **`/admin/*` (control page backend) is locked to this laptop's own page** by
+  `isLocalAdmin`. All of these must hold:
+  - the remote address is loopback;
+  - the `X-Bridge-Admin: 1` header is present. It is deliberately absent from
+    `Access-Control-Allow-Headers`, so cross-origin preflights fail;
+  - `Host` is local (defeats DNS rebinding);
+  - `Origin`, if present, matches `Host`.
+
+  The bridge listens on the LAN and sends permissive CORS for Odoo, so dropping any
+  check lets other devices or web pages change settings. Admin responses carry no CORS
+  headers. Only `EDITABLE` keys can be written; `saveSettings` does tmp + rename.
+  The page inserts bridge data with `textContent` only, because job sources come from
+  request paths.
+- **Config reloads itself.** `currentConfig()` re-reads `config.json` when its mtime
+  changes (called per job and per page/status request). A broken file keeps the previous
+  config rather than `DEFAULTS`. `STARTUP_KEYS` (ports, TLS, log file) keep their
+  startup values until a restart. Use `currentConfig()`, not the startup `config`, in
+  request paths.
+- The "Check connection" probe is `enqueuePrint([], cfg)` (connect, grace, close). It must
+  stay in the queue: the printer gets one connection at a time.
 - **Always HTTP 200.** Odoo reads the SOAP `success` attribute, not the status code. A
   failed print returns 200 with `success="false"`. Do not "fix" this into a 4xx/5xx.
 - **The raster path is the one that matters.** Odoo renders the whole ticket (customer
@@ -98,7 +120,8 @@ Load-bearing decisions, none of them obvious from a single function:
   cut → lower it; deployed at 100, default 400), `cutDelayMinMs` (same, for short/text
   jobs), `codePage` (ë/ç garbled; affects plain-text jobs only, since Odoo's images render
   accents as pixels).
-- The bridge runs as the `epos-bridge` scheduled task, so code and `config.json` changes
-  only apply after `Stop-ScheduledTask -TaskName epos-bridge; Start-ScheduledTask -TaskName
-  epos-bridge` — confirm a new `started:` line in `logs/bridge.log`. The job log line shows
-  the applied `cutDelay:`.
+- The bridge runs as the `epos-bridge` scheduled task. Code changes (and `STARTUP_KEYS`)
+  only apply after a restart: `restart-bridge.ps1` (self-elevates; `-CreateShortcuts` puts
+  "Restart printer bridge" and "Printer bridge status" on the desktop), or `Stop-/Start-
+  ScheduledTask -TaskName epos-bridge`. Confirm a new `started:` line in `logs/bridge.log`.
+  The job log line shows the applied `cutDelay:`.

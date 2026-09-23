@@ -116,8 +116,13 @@ function send(xml, label) {
   });
 }
 
-(async () => {
-  console.log(`sending to ${BRIDGE}`);
-  if (mode === 'text' || mode === 'both') await send(textTicket, 'text ticket');
-  if (mode === 'image' || mode === 'both') await send(imageTicket(), 'image ticket');
-})();
+// server.js reuses the tickets for its status-page test buttons.
+module.exports = { textTicket, imageTicket };
+
+if (require.main === module) {
+  (async () => {
+    console.log(`sending to ${BRIDGE}`);
+    if (mode === 'text' || mode === 'both') await send(textTicket, 'text ticket');
+    if (mode === 'image' || mode === 'both') await send(imageTicket(), 'image ticket');
+  })();
+}

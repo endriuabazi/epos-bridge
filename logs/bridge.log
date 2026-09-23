@@ -136,3 +136,43 @@
 2026-09-23T08:53:05.046Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:674ms)
 2026-09-23T08:53:24.257Z POST /cgi-bin/epos/service.cgi (90521 chars) from 127.0.0.1
 2026-09-23T08:53:24.258Z job: 68022 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1177ms)
+2026-09-23T09:18:53.176Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T09:18:53.177Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1101ms)
+2026-09-23T09:23:25.993Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-23T09:23:26.028Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-23T09:25:06.843Z test print (text) requested from status page
+2026-09-23T09:25:06.846Z job: 128 bytes -> 192.168.1.100:9100 (images:0 textChars:96 cuts:1 pulses:0 cutDelay:500ms)
+2026-09-23T09:25:11.759Z test print (image) requested from status page
+2026-09-23T09:25:11.762Z job: 7771 bytes -> 192.168.1.100:9100 (images:1 textChars:15 cuts:1 pulses:0 cutDelay:500ms)
+2026-09-23T09:26:57.968Z POST /cgi-bin/epos/service.cgi (70636 chars) from 127.0.0.1
+2026-09-23T09:26:57.970Z job: 53030 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:944ms)
+2026-09-23T09:27:15.538Z POST /cgi-bin/epos/service.cgi (103405 chars) from 127.0.0.1
+2026-09-23T09:27:15.540Z job: 77734 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1328ms)
+2026-09-23T09:50:56.017Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T09:50:56.019Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1101ms)
+2026-09-23T12:32:53.900Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-23T12:32:53.938Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-23T12:41:46.538Z test print (image) requested from status page
+2026-09-23T12:41:46.544Z job: 7771 bytes -> 192.168.1.100:9100 (images:1 textChars:15 cuts:1 pulses:0 cutDelay:500ms)
+2026-09-23T12:41:50.753Z test print (text) requested from status page
+2026-09-23T12:41:50.754Z job: 128 bytes -> 192.168.1.100:9100 (images:0 textChars:96 cuts:1 pulses:0 cutDelay:500ms)
+2026-09-23T12:41:50.842Z test print (text) requested from status page
+2026-09-23T12:41:50.842Z job: 128 bytes -> 192.168.1.100:9100 (images:0 textChars:96 cuts:1 pulses:0 cutDelay:500ms)
+2026-09-23T12:42:26.124Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-23T12:42:26.126Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:674ms)
+2026-09-23T12:42:52.355Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T12:42:52.356Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1101ms)
+2026-09-23T12:43:23.098Z POST /cgi-bin/epos/service.cgi (68416 chars) from 127.0.0.1
+2026-09-23T12:43:23.098Z job: 51358 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:918ms)
+2026-09-23T12:57:52.622Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-23T12:57:52.625Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:674ms)
+2026-09-23T12:58:22.369Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T12:58:22.370Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1101ms)
+2026-09-23T13:06:43.794Z POST /cgi-bin/epos/service.cgi (68416 chars) from 127.0.0.1
+2026-09-23T13:06:43.795Z job: 51358 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:918ms)
+2026-09-23T13:52:33.254Z POST /cgi-bin/epos/service.cgi (68416 chars) from 127.0.0.1
+2026-09-23T13:52:33.257Z job: 51358 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:918ms)
+2026-09-23T13:52:40.425Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-23T13:52:40.428Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:674ms)
+2026-09-23T13:52:50.038Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T13:52:50.040Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:1101ms)

@@ -252,6 +252,33 @@ On this PC the bridge runs by itself in the background as a Windows
 window, and restarts itself if it crashes. You normally don't have to do
 anything.
 
+### The easy way: two desktop icons
+
+Set them up once. Open PowerShell in the project folder (see
+[below](#where-to-type-the-commands)) and run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\restart-bridge.ps1 -CreateShortcuts
+```
+
+That puts two icons on the desktop:
+
+- **Printer bridge status** opens the control page (<https://localhost>):
+  - is the bridge running, and did the printer answer;
+  - the last 10 prints and whether each one worked;
+  - **Print Odoo-style test**, **Print text test** and **Check connection** buttons;
+  - the cut settings. Change them and click **Save**. They apply to the next
+    print with **no restart**.
+- **Restart printer bridge** restarts the bridge and says whether it came
+  back. Windows asks "Do you want to allow…?": click **Yes**. Only needed
+  after a change to `server.js`, or to the printer address, ports or HTTPS in
+  `config.json`.
+
+The status and settings parts of the page only work on this laptop. Opened
+from another device, the page shows just the test buttons.
+
+The commands below do the same things by hand.
+
 ### Where to type the commands
 
 1. Click **Start**, type `PowerShell`.
@@ -268,8 +295,12 @@ Every command below is pasted into that window. Restarting needs the
 
 ### Restart the bridge
 
-Do this after **any** change to `config.json` or `server.js`. Until you
-restart, the bridge keeps running the old version.
+Needed after a change to `server.js`, or to `listenPort`, `listenHost`,
+`tls` or `logFile` in `config.json`. Until you restart, the bridge keeps
+running the old version. Other `config.json` settings (printer address, cut
+settings…) are picked up by themselves on the next print.
+
+Double-click **Restart printer bridge**, or:
 
 ```powershell
 Stop-ScheduledTask -TaskName epos-bridge; Start-ScheduledTask -TaskName epos-bridge
@@ -301,8 +332,8 @@ $env:BRIDGE = "https://localhost"; node test-print.js both
 ```
 
 Both lines should say `PRINTED OK`, and two tickets should come out, each cut
-at the end. You can also open <https://localhost> in the browser and click
-**Send a test receipt**.
+at the end. Or use the **Print Odoo-style test** / **Print text test** buttons on
+the control page.
 
 With Odoo: print a bill from the POS. It should come out completely down to
 "Powered by Odoo", pause for about a second, then cut below it. Every job
@@ -354,7 +385,9 @@ cut. The wait grows with the length of the ticket.
 | `cutDelayMinMs` | `500` (default) | Shortest wait, used for short or text-only tickets. |
 | `feedLinesBeforeCut` | `4` | Blank lines fed after the ticket so the footer passes the blade. More lines = more blank paper; it does **not** change when the cut happens. |
 
-After changing any of them, [restart the bridge](#restart-the-bridge).
+Change them on the control page (**Printer bridge status** icon), or edit
+`config.json` directly. Either way they apply to the next print, no restart
+needed.
 
 ---
 
@@ -386,9 +419,12 @@ buffer is small. Lower `"rasterBandRows"` to `32` or `24`.
 **The ticket prints fully but the footer is cut through** — raise
 `"feedLinesBeforeCut"` by 1–2.
 
-**I changed `config.json` but nothing is different** — the bridge wasn't
-restarted. See [Restart the bridge](#restart-the-bridge) and check for a new
-`started:` line in `logs\bridge.log`.
+**I changed `config.json` but nothing is different**:
+- If the file has a typo, the bridge keeps the previous settings and logs
+  `config.json not reloaded` in `logs\bridge.log`. Fix the typo.
+- Port, TLS and log-file changes need a restart. See
+  [Restart the bridge](#restart-the-bridge), and check for a new `started:`
+  line in the log.
 
 **Albanian characters (ë, ç) print as junk** — try other `codePage` values.
 `16` is WPC1252; some clones want `0` (CP437), `18` (CP852) or `47`
@@ -445,6 +481,7 @@ Things worth adding next:
 | `config.json` | Printer address and tuning. |
 | `test-print.js` | Pretends to be Odoo; verifies the bridge without Odoo. |
 | `install-task.ps1` | Windows: installs/removes the `epos-bridge` scheduled task. |
+| `restart-bridge.ps1` | Windows: restarts the task; `-CreateShortcuts` makes the desktop icons. |
 | `setup-tls.ps1` | Windows: creates and trusts the HTTPS certificate. |
 | `logs/bridge.log` | What the bridge did: starts, jobs, errors. |
 | `setup-omnilink.ps1` | Windows: certificate + hosts entry for the Epson domain scheme. |

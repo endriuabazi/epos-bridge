@@ -16,6 +16,7 @@ const https = require('https');
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
+const { imageTicket } = require('./test-print.js');
 
 // ---------------------------------------------------------------------------
 // Config
@@ -69,18 +70,19 @@ const DEFAULTS = {
   dumpPayloads: false
 };
 
-function loadConfig() {
-  let fileCfg = {};
+// Returns {} when the file doesn't exist; throws on unreadable or invalid JSON.
+function readConfigFile() {
   try {
     // Strip a UTF-8 BOM: Windows PowerShell 5.1's Set-Content writes one,
     // and JSON.parse rejects it.
-    fileCfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8').replace(/^\uFEFF/, ''));
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8').replace(/^\uFEFF/, ''));
   } catch (err) {
-    if (err.code !== 'ENOENT') {
-      console.error(`! Could not read ${CONFIG_PATH}: ${err.message}`);
-      console.error('  Falling back to built-in defaults.');
-    }
+    if (err.code === 'ENOENT') return {};
+    throw err;
   }
+}
+
+function buildConfig(fileCfg) {
   const cfg = Object.assign({}, DEFAULTS, fileCfg);
   cfg.tls = Object.assign({}, DEFAULTS.tls, fileCfg.tls || {});
 
@@ -91,7 +93,44 @@ function loadConfig() {
   return cfg;
 }
 
-const config = loadConfig();
+function loadConfig() {
+  let fileCfg = {};
+  try {
+    fileCfg = readConfigFile();
+  } catch (err) {
+    console.error(`! Could not read ${CONFIG_PATH}: ${err.message}`);
+    console.error('  Falling back to built-in defaults.');
+  }
+  return buildConfig(fileCfg);
+}
+
+function configMtime() {
+  try { return fs.statSync(CONFIG_PATH).mtimeMs; } catch (err) { return 0; }
+}
+
+// Only read when the server starts; a reload keeps the running values.
+const STARTUP_KEYS = ['listenPort', 'listenHost', 'tls', 'logFile', 'logMaxBytes'];
+
+let config = loadConfig();
+let configStamp = configMtime();
+
+// Picks up config.json edits without a restart. A broken file keeps the
+// previous settings rather than falling back to DEFAULTS, so a typo can't
+// silently point the bridge at the wrong printer.
+function currentConfig() {
+  const stamp = configMtime();
+  if (stamp === configStamp) return config;
+  configStamp = stamp;
+  try {
+    const next = buildConfig(readConfigFile());
+    for (const key of STARTUP_KEYS) next[key] = config[key];
+    config = next;
+    log(`config reloaded from ${CONFIG_PATH}`);
+  } catch (err) {
+    warn(`config.json not reloaded, keeping previous settings: ${err.message}`);
+  }
+  return config;
+}
 
 // ---------------------------------------------------------------------------
 // Tiny logger
@@ -487,43 +526,423 @@ function corsHeaders(req) {
   };
 }
 
-const STATUS_PAGE = (cfg) => `<!doctype html>
-<html><head><meta charset="utf-8"><title>epos-bridge</title>
+// Data from the bridge is only ever inserted with textContent: job sources come
+// from request paths, so they must not reach innerHTML.
+const STATUS_PAGE = (cfg) => {
+  const scheme = cfg.tls.enabled ? 'https' : 'http';
+  const defaultPort = cfg.tls.enabled ? 443 : 80;
+  const odooUrl = `${scheme}://&lt;this-laptop-ip&gt;${cfg.listenPort === defaultPort ? '' : ':' + cfg.listenPort}`;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Printer bridge</title>
 <style>
- body{font:15px/1.5 system-ui,sans-serif;margin:3rem auto;max-width:38rem;padding:0 1rem}
- h1{font-size:1.4rem;margin-bottom:.2rem} code{background:#f2f2f2;padding:.1rem .35rem;border-radius:3px}
- table{border-collapse:collapse;margin:1rem 0}td{padding:.3rem .8rem .3rem 0}
- button{font:inherit;padding:.5rem 1rem;cursor:pointer}
- #out{margin-top:1rem;color:#444}
-</style></head><body>
-<h1>epos-bridge is running</h1>
-<p>Odoo thinks this is an Epson ePOS printer. It isn't — it forwards to a plain ESC/POS printer.</p>
-<table>
-<tr><td>Forwarding to</td><td><code>${cfg.printerHost}:${cfg.printerPort}</code></td></tr>
-<tr><td>Point Odoo at</td><td><code>${cfg.tls.enabled ? 'https' : 'http'}://&lt;this-machine-ip&gt;:${cfg.listenPort}</code></td></tr>
-</table>
-<button onclick="t()">Send a test receipt</button>
-<div id="out"></div>
-<script>
-async function t(){
- const o=document.getElementById('out');o.textContent='sending...';
- try{const r=await fetch('/test-print',{method:'POST'});
- o.textContent=r.ok?'Sent. Check the printer.':'Failed: '+await r.text();}
- catch(e){o.textContent='Failed: '+e.message}
+:root{
+ --desk:#E9EDF0;--paper:#FFFFFF;--ink:#1C2530;--muted:#66737F;--line:rgba(28,37,48,.12);
+ --ok:#1F8A4C;--bad:#C0362C;--idle:#8A96A1;--slot:#2A333C;--focus:#2563EB;color-scheme:light;
+ --display:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
+ --text:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
 }
-</script></body></html>`;
+@media (prefers-color-scheme:dark){:root{
+ --desk:#12171C;--paper:#1D242B;--ink:#E6EBEF;--muted:#95A1AC;--line:rgba(230,235,239,.13);
+ --ok:#3FB872;--bad:#E5675C;--idle:#6B7782;--slot:#05080A;--focus:#7AA7FF;color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--desk);color:var(--ink);font:16px/1.5 var(--text);-webkit-font-smoothing:antialiased}
+main{max-width:680px;margin:0 auto;padding:40px 20px 64px}
 
-const TEST_TICKET = `<?xml version="1.0" encoding="utf-8"?>
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.brand{font:600 17px/1.2 var(--display);margin:0}
+.target{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+
+.slot{position:relative;z-index:2;height:14px;margin:0 -10px;border-radius:7px;background:var(--slot);
+ box-shadow:inset 0 -4px 0 rgba(0,0,0,.35)}
+.feed{overflow:hidden;margin:-7px -10px 0;padding:0 10px 34px}
+.slip{position:relative;background:var(--paper);padding:36px 32px 18px;
+ filter:drop-shadow(0 1px 1px rgba(28,37,48,.08)) drop-shadow(0 6px 10px rgba(28,37,48,.06));
+ animation:feed 850ms cubic-bezier(.2,.75,.25,1) both}
+.slip::after{content:"";position:absolute;left:0;right:0;top:100%;height:9px;background:var(--paper);
+ -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='9'%3E%3Cpath d='M0 0h18L9 9z'/%3E%3C/svg%3E") 0 0/18px 9px repeat-x;
+ mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='9'%3E%3Cpath d='M0 0h18L9 9z'/%3E%3C/svg%3E") 0 0/18px 9px repeat-x}
+@keyframes feed{from{transform:translateY(-102%)}to{transform:none}}
+@media (prefers-reduced-motion:reduce){.slip{animation:none}}
+
+.state{display:flex;align-items:center;gap:14px;margin:0;font:600 31px/1.15 var(--display);letter-spacing:-.015em}
+.dot{flex:none;width:12px;height:12px;border-radius:50%;background:var(--idle);transition:background-color .3s,box-shadow .3s}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 5px color-mix(in srgb,var(--ok) 18%,transparent)}
+.dot.bad{background:var(--bad);box-shadow:0 0 0 5px color-mix(in srgb,var(--bad) 18%,transparent)}
+.sub{margin:10px 0 0;color:var(--muted);max-width:56ch}
+.facts{display:grid;grid-template-columns:max-content 1fr;gap:4px 20px;margin:22px 0 0;font-size:14px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;font-variant-numeric:tabular-nums}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;padding-top:22px;border-top:1.5px dashed var(--line)}
+
+button{font:inherit;font-size:15px;color:var(--ink);background:transparent;border:1px solid var(--line);
+ border-radius:10px;padding:9px 16px;cursor:pointer;transition:background-color .15s,border-color .15s,opacity .15s}
+button:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+button.primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+button.primary:hover{background:color-mix(in srgb,var(--ink) 86%,var(--paper))}
+button:disabled{opacity:.4;cursor:default}
+button:disabled:hover{background:transparent}
+button.primary:disabled:hover{background:var(--ink)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.msg{min-height:22px;margin:14px 0 0;font-size:14px;color:var(--muted)}
+.msg.ok{color:var(--ok)} .msg.bad{color:var(--bad)}
+
+section{margin-top:48px}
+h2{margin:0 0 4px;font:600 20px/1.3 var(--display);letter-spacing:-.01em}
+.lede{margin:0 0 16px;color:var(--muted);font-size:15px;max-width:60ch}
+
+.jobs{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.jobs li{display:grid;grid-template-columns:4rem 1fr auto;gap:2px 16px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--line)}
+.jobs li.empty{display:block;color:var(--muted)}
+.jobs time{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.jobs .meta{color:var(--muted);font-size:13px}
+.res{font-size:14px;font-weight:600} .res.ok{color:var(--ok)} .res.bad{color:var(--bad)}
+.jobs .err{grid-column:2/-1;color:var(--bad);font-size:13px}
+
+.settings{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:1fr auto;gap:4px 24px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}
+.row>label,.row>.label{grid-column:1;grid-row:1;font-weight:600;font-size:15px}
+.row>.hint{grid-column:1;grid-row:2;margin:0;color:var(--muted);font-size:13px;max-width:46ch}
+.row>.control{grid-column:2;grid-row:1/span 2}
+.stepper{display:inline-flex;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:10px}
+.stepper:has(input:invalid){border-color:var(--bad)}
+.stepper button{width:38px;height:38px;padding:0;border:0;border-radius:9px;font-size:18px;line-height:1}
+.stepper input{width:58px;border:0;background:transparent;color:inherit;font:inherit;text-align:right;
+ font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield}
+.stepper input::-webkit-inner-spin-button,.stepper input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.unit{width:3.4em;padding-left:5px;color:var(--muted);font-size:13px}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.seg button{border:0;border-radius:8px;padding:6px 16px;font-size:14px}
+.seg button[aria-checked=true]{background:var(--paper);box-shadow:0 1px 2px rgba(0,0,0,.14)}
+.formbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:18px}
+.formbar .msg{margin:0 0 0 6px}
+.note{margin:28px 0 0;color:var(--muted);font-size:13px;max-width:64ch}
+
+@media (max-width:540px){
+ main{padding-top:24px}
+ .slip{padding:28px 20px 22px}
+ .state{font-size:26px}
+ .row{grid-template-columns:1fr}
+ .row>.control{grid-column:1;grid-row:3;justify-self:start;margin-top:8px}
+}
+</style></head><body>
+<main>
+<header class="top">
+ <p class="brand">Printer bridge</p>
+ <p class="target">Printer at ${cfg.printerHost}:${cfg.printerPort}</p>
+</header>
+
+<div class="slot" aria-hidden="true"></div>
+<div class="feed"><div class="slip">
+ <h1 class="state"><span id="dot" class="dot" aria-hidden="true"></span><span id="state">Checking the bridge…</span></h1>
+ <p id="sub" class="sub">One moment.</p>
+ <dl class="facts adm" hidden>
+  <dt>Bridge running since</dt><dd id="since"></dd>
+ </dl>
+ <div class="actions">
+  <button class="primary" onclick="testPrint(this,'image')">Print Odoo-style test</button>
+  <button onclick="testPrint(this,'text')">Print text test</button>
+  <button class="adm" hidden onclick="checkPrinter(this)">Check connection</button>
+ </div>
+ <p id="out" class="msg" role="status" aria-live="polite"></p>
+</div></div>
+
+<section class="adm" hidden aria-labelledby="h-prints">
+ <h2 id="h-prints">Recent prints</h2>
+ <p class="lede">The last 10 since the bridge started. Updates every 10 seconds.</p>
+ <ul id="jobs" class="jobs"></ul>
+</section>
+
+<section class="adm" hidden aria-labelledby="h-cut">
+ <h2 id="h-cut">Cut settings</h2>
+ <p class="lede">Your printer cuts the moment it is told to, so the bridge waits for the ticket to finish printing first.</p>
+ <form onsubmit="saveChanges(event)" novalidate>
+  <div class="settings">
+   <div class="row">
+    <label for="cutDelayMsPer100Rows">Wait before cutting</label>
+    <div class="control stepper"><button type="button" data-d="-" aria-label="Decrease">−</button><input id="cutDelayMsPer100Rows" type="number" inputmode="numeric" min="0" max="2000" step="10" required><span class="unit">ms</span><button type="button" data-d="+" aria-label="Increase">+</button></div>
+    <p class="hint">Per 100 rows of ticket. Raise it if the cut lands above the QR code; lower it if the pause feels long.</p>
+   </div>
+   <div class="row">
+    <label for="cutDelayMinMs">Shortest wait</label>
+    <div class="control stepper"><button type="button" data-d="-" aria-label="Decrease">−</button><input id="cutDelayMinMs" type="number" inputmode="numeric" min="0" max="10000" step="50" required><span class="unit">ms</span><button type="button" data-d="+" aria-label="Increase">+</button></div>
+    <p class="hint">Used for short and text-only tickets.</p>
+   </div>
+   <div class="row">
+    <label for="feedLinesBeforeCut">Blank lines after the ticket</label>
+    <div class="control stepper"><button type="button" data-d="-" aria-label="Decrease">−</button><input id="feedLinesBeforeCut" type="number" inputmode="numeric" min="0" max="20" step="1" required><span class="unit">lines</span><button type="button" data-d="+" aria-label="Increase">+</button></div>
+    <p class="hint">Pushes the footer past the blade. Raise it if the footer gets cut; lower it to save paper.</p>
+   </div>
+   <div class="row">
+    <span class="label" id="l-cut">Cut</span>
+    <div class="control seg" id="cutType" role="radiogroup" aria-labelledby="l-cut"><button type="button" role="radio" data-v="partial">Partial</button><button type="button" role="radio" data-v="full">Full</button></div>
+    <p class="hint">Partial leaves a small tab so the ticket doesn't drop.</p>
+   </div>
+  </div>
+  <div class="formbar">
+   <button id="save" class="primary" type="submit" disabled>Save changes</button>
+   <button id="discard" type="button" hidden onclick="discardChanges()">Discard</button>
+   <p id="saved" class="msg" role="status" aria-live="polite"></p>
+  </div>
+ </form>
+ <p class="note">Printer address, ports and HTTPS are set in config.json and need a restart: double-click Restart printer bridge on the desktop.</p>
+</section>
+
+<p class="note">Odoo connects to ${odooUrl}</p>
+</main>
+
+<script>
+var H={'X-Bridge-Admin':'1'};
+var KEYS=['cutDelayMsPer100Rows','cutDelayMinMs','feedLinesBeforeCut'];
+var saved=null,busy=false,cutType='partial';
+function $(id){return document.getElementById(id)}
+function hm(t){return new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+function when(t){return new Date(t).toLocaleDateString([],{day:'numeric',month:'short'})+', '+hm(t)}
+function say(id,msg,kind){var e=$(id);e.textContent=msg;e.className='msg'+(kind?' '+kind:'')}
+function secs(ms){return (ms/1000).toFixed(1).replace(/\\.0$/,'')+' s'}
+function name(src){return src==='Odoo'?'Odoo ticket':src==='test (text)'?'Text test':src==='test (image)'?'Odoo-style test':src}
+
+function showState(kind,head,sub){$('dot').className='dot'+(kind?' '+kind:'');$('state').textContent=head;$('sub').textContent=sub}
+
+function renderState(s){
+ var job=s.jobs[0],chk=s.lastPrinterCheck,ev=null;
+ if(job)ev={t:job.time,ok:job.ok,err:job.error,print:true};
+ if(chk&&(!ev||chk.time>ev.t))ev={t:chk.time,ok:chk.ok,err:chk.error,print:false};
+ if(!ev)showState('','Waiting for the first print','The bridge is running. Print a test to make sure the printer answers.');
+ else if(ev.ok)showState('ok','Ready to print',(ev.print?'Last print went through at ':'The printer answered at ')+hm(ev.t)+'.');
+ else showState('bad','Printer not answering',(ev.print?'Last print failed at ':'The connection check failed at ')+hm(ev.t)+' ('+ev.err+'). Check that the printer is on and its cable is plugged in, then check the connection again.');
+ $('since').textContent=when(s.startedAt);
+}
+
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function renderJobs(s){
+ var ul=$('jobs');ul.textContent='';
+ if(!s.jobs.length){ul.appendChild(el('li','empty','Nothing printed since '+when(s.startedAt)+'. Print a test above to check the printer.'));return}
+ s.jobs.forEach(function(j){
+  var li=el('li'),what=el('div');
+  li.appendChild(el('time','',hm(j.time)));
+  what.appendChild(el('div','',name(j.source)));
+  what.appendChild(el('div','meta',(j.images?'Image':'Text')+(j.cutDelayMs&&j.cutDelayMs.length?', cut after '+secs(j.cutDelayMs[0]):'')));
+  li.appendChild(what);
+  li.appendChild(el('span','res '+(j.ok?'ok':'bad'),j.ok?'Printed':'Failed'));
+  if(!j.ok&&j.error)li.appendChild(el('div','err',j.error));
+  ul.appendChild(li);
+ });
+}
+
+function setCut(v){cutType=v;document.querySelectorAll('#cutType button').forEach(function(b){b.setAttribute('aria-checked',String(b.dataset.v===v))})}
+function values(){var o={};KEYS.forEach(function(k){o[k]=Number($(k).value)});o.cutType=cutType;return o}
+function pick(s){var o={};KEYS.forEach(function(k){o[k]=s[k]});o.cutType=s.cutType;return o}
+function dirty(){var d=!!saved&&JSON.stringify(values())!==JSON.stringify(pick(saved));$('save').disabled=!d;$('discard').hidden=!d;return d}
+function fill(s){KEYS.forEach(function(k){$(k).value=s[k]});setCut(s.cutType);dirty()}
+
+document.querySelectorAll('.stepper').forEach(function(st){
+ var input=st.querySelector('input');
+ st.querySelectorAll('button').forEach(function(b){b.addEventListener('click',function(){
+  if(b.dataset.d==='+')input.stepUp();else input.stepDown();dirty();say('saved','')})});
+ input.addEventListener('input',function(){dirty();say('saved','')});
+});
+document.querySelectorAll('#cutType button').forEach(function(b){b.addEventListener('click',function(){setCut(b.dataset.v);dirty();say('saved','')})});
+
+async function refresh(){
+ var r;
+ try{r=await fetch('/admin/status',{headers:H,cache:'no-store'})}
+ catch(e){showState('bad','Bridge not reachable','This page lost contact with the bridge. Double-click Restart printer bridge on the desktop.');return}
+ if(r.status===403){showState('','Test printing','Status and settings are shown only on the laptop the bridge runs on.');return}
+ var s=await r.json();
+ document.querySelectorAll('.adm').forEach(function(e){e.hidden=false});
+ renderState(s);renderJobs(s);
+ if(!dirty()){saved=s.settings;fill(saved)}
+}
+
+async function act(btn,label,fn){
+ if(busy)return;busy=true;
+ var all=document.querySelectorAll('.actions button'),old=btn.textContent;
+ all.forEach(function(b){b.disabled=true});btn.textContent=label;
+ try{await fn()}finally{busy=false;all.forEach(function(b){b.disabled=false});btn.textContent=old;refresh()}
+}
+function testPrint(btn,kind){act(btn,'Printing…',async function(){
+ try{var r=await fetch('/test-print?kind='+kind,{method:'POST'});var t=await r.text();
+  if(/success="true"/.test(t))say('out','Test printed. Check the paper.','ok');
+  else say('out','The test did not print. Recent prints below shows why.','bad')}
+ catch(e){say('out','Could not reach the bridge: '+e.message,'bad')}})}
+function checkPrinter(btn){act(btn,'Checking…',async function(){
+ try{var r=await fetch('/admin/check-printer',{method:'POST',headers:H});var c=await r.json();
+  if(c.ok)say('out','The printer answered.','ok');else say('out','The printer did not answer: '+c.error,'bad')}
+ catch(e){say('out','Could not reach the bridge: '+e.message,'bad')}})}
+
+// Inline handlers inside the form see element ids first (form.save is the button), so names must differ from ids.
+async function saveChanges(ev){
+ ev.preventDefault();
+ var bad=KEYS.filter(function(k){return !$(k).checkValidity()});
+ if(bad.length){say('saved','That value is out of range. Use a whole number between the limits.','bad');$(bad[0]).focus();return}
+ $('save').disabled=true;
+ try{
+  var r=await fetch('/admin/settings',{method:'POST',headers:{'Content-Type':'application/json','X-Bridge-Admin':'1'},body:JSON.stringify(values())});
+  var res=await r.json();
+  if(r.ok){saved=res.settings;fill(saved);say('saved','Saved. The next print uses these settings.','ok')}
+  else{say('saved','Not saved: '+res.error,'bad');dirty()}
+ }catch(e){say('saved','Not saved: the bridge could not be reached.','bad');dirty()}
+}
+function discardChanges(){fill(saved);say('saved','')}
+
+refresh();setInterval(refresh,10000);
+</script></body></html>`;
+};
+
+const testTicket = (cfg) => `<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>
 <epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">
 <text align="center" dw="true" dh="true">EPOS-BRIDGE&#10;</text>
 <text align="center">test ticket&#10;</text>
 <feed line="1"/>
 <text align="left">If you can read this, Odoo can print here.&#10;</text>
-<text align="left">Bridge -&gt; ${config.printerHost}:${config.printerPort}&#10;</text>
+<text align="left">Bridge -&gt; ${cfg.printerHost}:${cfg.printerPort}&#10;</text>
 <feed line="1"/>
 <cut type="feed"/>
 </epos-print></s:Body></s:Envelope>`;
+
+// ---------------------------------------------------------------------------
+// Control page backend: status, printer check, settings
+// ---------------------------------------------------------------------------
+
+const STARTED_AT = new Date().toISOString();
+const recentJobs = [];
+let lastPrinterCheck = null;
+
+function recordJob(job) {
+  recentJobs.unshift(job);
+  if (recentJobs.length > 10) recentJobs.length = 10;
+}
+
+const EDITABLE = {
+  cutDelayMsPer100Rows: { min: 0, max: 2000 },
+  cutDelayMinMs: { min: 0, max: 10000 },
+  feedLinesBeforeCut: { min: 0, max: 20 },
+  cutType: { values: ['partial', 'full'] }
+};
+
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+// Admin only from this laptop's own page: loopback, a header other sites can't
+// send cross-origin (absent from Allow-Headers), and a local Host (DNS rebinding).
+function isLocalAdmin(req) {
+  if (!LOOPBACK.has(req.socket.remoteAddress)) return false;
+  if (req.headers['x-bridge-admin'] !== '1') return false;
+  let host;
+  try { host = new URL(`http://${req.headers.host || ''}`); } catch (err) { return false; }
+  if (!LOCAL_HOSTNAMES.has(host.hostname)) return false;
+  if (req.headers.origin) {
+    try {
+      if (new URL(req.headers.origin).host !== host.host) return false;
+    } catch (err) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function validateSettings(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return 'expected a JSON object';
+  for (const [key, value] of Object.entries(body)) {
+    const rule = EDITABLE[key];
+    if (!rule) return `${key} can't be changed from this page`;
+    if (rule.values) {
+      if (!rule.values.includes(value)) return `${key} must be one of: ${rule.values.join(', ')}`;
+    } else if (!Number.isInteger(value) || value < rule.min || value > rule.max) {
+      return `${key} must be a whole number from ${rule.min} to ${rule.max}`;
+    }
+  }
+  return null;
+}
+
+// Rewrites only the given keys; tmp + rename so a crash can't leave half a file.
+function saveSettings(updates) {
+  const fileCfg = readConfigFile();
+  Object.assign(fileCfg, updates);
+  const tmp = `${CONFIG_PATH}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(fileCfg, null, 2) + '\n');
+  fs.renameSync(tmp, CONFIG_PATH);
+}
+
+function statusSnapshot(cfg) {
+  const settings = {};
+  for (const key of Object.keys(EDITABLE)) settings[key] = cfg[key];
+  return {
+    startedAt: STARTED_AT,
+    printer: `${cfg.printerHost}:${cfg.printerPort}`,
+    configFile: CONFIG_PATH,
+    lastPrinterCheck,
+    jobs: recentJobs,
+    settings
+  };
+}
+
+// Connect-and-close through the queue, so it never overlaps a print job.
+async function checkPrinter(cfg) {
+  const time = new Date().toISOString();
+  try {
+    await enqueuePrint([], cfg);
+    lastPrinterCheck = { time, ok: true };
+  } catch (err) {
+    lastPrinterCheck = { time, ok: false, error: err.message };
+  }
+  return lastPrinterCheck;
+}
+
+async function handleAdmin(req, res, url) {
+  const reply = (status, body) => {
+    res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(body));
+  };
+
+  if (!isLocalAdmin(req)) {
+    reply(403, { error: 'Manage the bridge from the laptop it runs on.' });
+    return;
+  }
+
+  const cfg = currentConfig();
+  const route = `${req.method} ${url.pathname}`;
+
+  if (route === 'GET /admin/status') {
+    reply(200, statusSnapshot(cfg));
+    return;
+  }
+
+  if (route === 'POST /admin/check-printer') {
+    reply(200, await checkPrinter(cfg));
+    return;
+  }
+
+  if (route === 'POST /admin/settings') {
+    let body;
+    try {
+      body = JSON.parse(await readBody(req, 16 * 1024));
+    } catch (err) {
+      reply(400, { error: 'expected a JSON object' });
+      return;
+    }
+    const problem = validateSettings(body);
+    if (problem) {
+      reply(400, { error: problem });
+      return;
+    }
+    try {
+      saveSettings(body);
+    } catch (err) {
+      reply(500, { error: `could not update config.json: ${err.message}` });
+      return;
+    }
+    log(`settings changed from the control page: ${JSON.stringify(body)}`);
+    reply(200, statusSnapshot(currentConfig()));
+    return;
+  }
+
+  reply(404, { error: 'unknown admin route' });
+}
 
 // ---------------------------------------------------------------------------
 // HTTP handling
@@ -559,14 +978,17 @@ function dumpPayload(xml) {
   }
 }
 
-async function handlePrint(req, res, xml) {
-  if (config.dumpPayloads) dumpPayload(xml);
+async function handlePrint(req, res, xml, source) {
+  const cfg = currentConfig();
+  const time = new Date().toISOString();
+  if (cfg.dumpPayloads) dumpPayload(xml);
 
   let translated;
   try {
-    translated = translate(xml, config);
+    translated = translate(xml, cfg);
   } catch (err) {
     warn(`translation failed: ${err.message}`);
+    recordJob({ time, source, ok: false, error: `could not read the ticket: ${err.message}` });
     res.writeHead(200, Object.assign(
       { 'Content-Type': 'text/xml; charset=utf-8' }, corsHeaders(req)
     ));
@@ -574,24 +996,28 @@ async function handlePrint(req, res, xml) {
     return;
   }
 
-  if (config.logJobs) {
-    const s = translated.stats;
-    const segs = translated.segments;
-    const bytes = segs.reduce((n, seg) => n + seg.bytes.length, 0);
-    const delays = segs.filter((seg) => seg.delayMs > 0).map((seg) => seg.delayMs + 'ms');
-    log(`job: ${bytes} bytes -> ${config.printerHost}:${config.printerPort}`
+  const s = translated.stats;
+  const segs = translated.segments;
+  const bytes = segs.reduce((n, seg) => n + seg.bytes.length, 0);
+  const delays = segs.filter((seg) => seg.delayMs > 0).map((seg) => seg.delayMs);
+  const job = { time, source, bytes, images: s.images, cutDelayMs: delays };
+
+  if (cfg.logJobs) {
+    log(`job: ${bytes} bytes -> ${cfg.printerHost}:${cfg.printerPort}`
       + ` (images:${s.images} textChars:${s.text} cuts:${s.cuts} pulses:${s.pulses}`
-      + ` cutDelay:${delays.join(',')})`);
+      + ` cutDelay:${delays.map((d) => d + 'ms').join(',')})`);
   }
 
   try {
-    await enqueuePrint(translated.segments, config);
+    await enqueuePrint(segs, cfg);
+    recordJob(Object.assign(job, { ok: true }));
     res.writeHead(200, Object.assign(
       { 'Content-Type': 'text/xml; charset=utf-8' }, corsHeaders(req)
     ));
     res.end(soapResponse(true));
   } catch (err) {
     warn(`print failed: ${err.message}`);
+    recordJob(Object.assign(job, { ok: false, error: err.message }));
     // Still HTTP 200 — Odoo reads the SOAP success flag, not the status code.
     res.writeHead(200, Object.assign(
       { 'Content-Type': 'text/xml; charset=utf-8' }, corsHeaders(req)
@@ -609,21 +1035,27 @@ async function requestHandler(req, res) {
     return;
   }
 
+  if (url.pathname.startsWith('/admin/')) {
+    await handleAdmin(req, res, url);
+    return;
+  }
+
   if (req.method === 'GET') {
+    const cfg = currentConfig();
     if (url.pathname === '/health') {
       res.writeHead(200, Object.assign(
         { 'Content-Type': 'application/json' }, corsHeaders(req)
       ));
       res.end(JSON.stringify({
         ok: true,
-        printer: `${config.printerHost}:${config.printerPort}`
+        printer: `${cfg.printerHost}:${cfg.printerPort}`
       }));
       return;
     }
     res.writeHead(200, Object.assign(
       { 'Content-Type': 'text/html; charset=utf-8' }, corsHeaders(req)
     ));
-    res.end(STATUS_PAGE(config));
+    res.end(STATUS_PAGE(cfg));
     return;
   }
 
@@ -634,8 +1066,10 @@ async function requestHandler(req, res) {
   }
 
   if (url.pathname === '/test-print') {
-    log('test print requested from status page');
-    await handlePrint(req, res, TEST_TICKET);
+    const image = url.searchParams.get('kind') === 'image';
+    log(`test print (${image ? 'image' : 'text'}) requested from status page`);
+    await handlePrint(req, res, image ? imageTicket() : testTicket(currentConfig()),
+      image ? 'test (image)' : 'test (text)');
     return;
   }
 
@@ -650,7 +1084,8 @@ async function requestHandler(req, res) {
   }
 
   log(`POST ${url.pathname} (${xml.length} chars) from ${req.socket.remoteAddress}`);
-  await handlePrint(req, res, xml);
+  await handlePrint(req, res, xml,
+    url.pathname === '/cgi-bin/epos/service.cgi' ? 'Odoo' : url.pathname);
 }
 
 // ---------------------------------------------------------------------------
