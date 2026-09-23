@@ -3,7 +3,7 @@
   "printerHost": "192.168.1.100",
   "printerPort": 9100,
   "invertImage": false,
-  "rasterBandRows": 64,
+  "rasterBandRows": 24,
   "feedLinesBeforeCut": 4,
   "cutType": "partial",
   "codePage": 16,

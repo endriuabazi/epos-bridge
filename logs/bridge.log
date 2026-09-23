@@ -1,0 +1,118 @@
+2026-09-22T13:52:13.599Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-22T13:52:13.634Z started: listening https://0.0.0.0:8099 -> printer 192.168.1.100:9100
+2026-09-22T13:52:27.748Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-22T13:52:27.785Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-22T13:52:39.245Z POST /cgi-bin/epos/service.cgi (540 chars) from 127.0.0.1
+2026-09-22T13:52:39.247Z job: 114 bytes -> 192.168.1.100:9100 (images:0 textChars:73 cuts:1 pulses:0)
+2026-09-22T16:00:04.347Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-22T16:00:04.348Z job: 35542 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:00:24.997Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-22T16:00:24.998Z job: 35542 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:00:43.356Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-22T16:00:43.357Z job: 35542 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:01:26.669Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-22T16:01:26.670Z job: 35542 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:01:40.470Z POST /cgi-bin/epos/service.cgi (53484 chars) from 127.0.0.1
+2026-09-22T16:01:40.470Z job: 39966 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:02:01.221Z POST /cgi-bin/epos/service.cgi (65260 chars) from 127.0.0.1
+2026-09-22T16:02:01.221Z job: 48814 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:11:03.868Z POST /cgi-bin/epos/service.cgi (65260 chars) from 127.0.0.1
+2026-09-22T16:11:03.869Z job: 48814 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:27:55.195Z POST /cgi-bin/epos/service.cgi (90521 chars) from 127.0.0.1
+2026-09-22T16:27:55.196Z job: 67798 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:28:23.567Z POST /cgi-bin/epos/service.cgi (90521 chars) from 127.0.0.1
+2026-09-22T16:28:23.568Z job: 67798 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:28:55.597Z POST /cgi-bin/epos/service.cgi (90521 chars) from 127.0.0.1
+2026-09-22T16:28:55.598Z job: 67798 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:30:59.795Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-22T16:30:59.795Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-22T16:39:14.668Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-22T16:39:14.669Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-22T16:39:42.090Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-22T16:39:42.090Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-22T16:39:59.999Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-22T16:39:59.999Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-22T16:40:26.631Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-22T16:40:26.631Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-22T16:40:26.723Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-22T16:40:26.723Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-22T16:42:14.302Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-22T16:42:14.303Z job: 35542 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:42:34.248Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-22T16:42:34.249Z job: 62926 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:49:23.817Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-22T16:49:23.855Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-22T16:49:34.685Z POST /cgi-bin/epos/service.cgi (10606 chars) from 127.0.0.1
+2026-09-22T16:49:34.687Z job: 7771 bytes -> 192.168.1.100:9100 (images:1 textChars:15 cuts:1 pulses:0)
+2026-09-22T16:50:35.350Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-22T16:50:35.351Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:50:49.198Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-22T16:50:49.199Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:52:27.105Z POST /cgi-bin/epos/service.cgi (115504 chars) from 127.0.0.1
+2026-09-22T16:52:27.105Z job: 86814 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:54:28.691Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-22T16:54:28.726Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-22T16:54:50.895Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-22T16:54:50.898Z   payload saved to C:\Users\Dell\Downloads\Printer Adaptor\logs\job-1790096090897.xml
+2026-09-22T16:54:50.900Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:56:47.139Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-22T16:56:47.176Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-22T16:56:55.571Z POST /cgi-bin/epos/service.cgi (540 chars) from 127.0.0.1
+2026-09-22T16:56:55.574Z job: 114 bytes -> 192.168.1.100:9100 (images:0 textChars:73 cuts:1 pulses:0)
+2026-09-22T16:57:58.719Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-22T16:57:58.721Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:58:06.921Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-22T16:58:06.922Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-22T16:58:53.955Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-22T16:58:53.989Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-22T16:59:02.357Z POST /cgi-bin/epos/service.cgi (540 chars) from 127.0.0.1
+2026-09-22T16:59:02.359Z job: 114 bytes -> 192.168.1.100:9100 (images:0 textChars:73 cuts:1 pulses:0)
+2026-09-22T16:59:06.126Z ! print failed: connect ECONNABORTED 192.168.1.100:9100
+2026-09-23T07:38:08.041Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-23T07:38:08.046Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T07:38:22.114Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T07:38:22.115Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T07:47:21.906Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T07:47:21.907Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T07:48:04.412Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T07:48:04.413Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T07:48:05.612Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T07:48:05.613Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T07:50:31.861Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-23T07:50:31.861Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-23T07:50:39.552Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-23T07:50:39.552Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-23T07:52:37.428Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-23T07:52:37.428Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-23T07:53:33.815Z POST /cgi-bin/epos/service.cgi (449 chars) from 127.0.0.1
+2026-09-23T07:53:33.816Z job: 43 bytes -> 192.168.1.100:9100 (images:0 textChars:23 cuts:1 pulses:0)
+2026-09-23T07:53:50.337Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T07:53:50.337Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T07:57:36.534Z POST /cgi-bin/epos/service.cgi (55721 chars) from 127.0.0.1
+2026-09-23T07:57:36.535Z job: 42054 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T07:57:51.286Z POST /cgi-bin/epos/service.cgi (111189 chars) from 127.0.0.1
+2026-09-23T07:57:51.286Z job: 83654 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T08:00:55.774Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T08:00:55.775Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0)
+2026-09-23T08:11:56.356Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-23T08:11:56.396Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-23T08:15:55.025Z POST /cgi-bin/epos/service.cgi (47596 chars) from 127.0.0.1
+2026-09-23T08:15:55.028Z job: 35662 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:2216ms)
+2026-09-23T08:16:12.292Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T08:16:12.293Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:3924ms)
+2026-09-23T08:19:06.720Z POST /cgi-bin/epos/service.cgi (65432 chars) from 127.0.0.1
+2026-09-23T08:19:06.721Z job: 49102 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:3052ms)
+2026-09-23T08:19:24.915Z POST /cgi-bin/epos/service.cgi (103405 chars) from 127.0.0.1
+2026-09-23T08:19:24.917Z job: 77734 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:4832ms)
+2026-09-23T08:25:07.346Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T08:25:07.347Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:3924ms)
+2026-09-23T08:26:19.115Z TLS: using PFX C:\Users\Dell\Downloads\Printer Adaptor\certs\bridge.pfx
+2026-09-23T08:26:19.157Z started: listening https://0.0.0.0:443 -> printer 192.168.1.100:9100
+2026-09-23T08:26:29.953Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T08:26:29.955Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:4404ms)
+2026-09-23T08:26:42.613Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T08:26:42.614Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:4404ms)
+2026-09-23T08:26:54.531Z POST /cgi-bin/epos/service.cgi (84032 chars) from 127.0.0.1
+2026-09-23T08:26:54.531Z job: 63126 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:4404ms)
+2026-09-23T08:28:39.855Z POST /cgi-bin/epos/service.cgi (106649 chars) from 127.0.0.1
+2026-09-23T08:28:39.856Z job: 80174 bytes -> 192.168.1.100:9100 (images:1 textChars:0 cuts:1 pulses:0 cutDelay:5464ms)

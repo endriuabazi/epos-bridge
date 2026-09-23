@@ -39,6 +39,12 @@ const DEFAULTS = {
   // Blank lines fed before the cut, so the cut lands below the last text.
   feedLinesBeforeCut: 4,
   cutType: 'partial',            // 'partial' | 'full'
+  // The printer runs a cut as soon as it reads it, even while image rows it
+  // already received are still printing. So the feed+cut is held back for a
+  // time scaled to the image rows before it. Raise this if long tickets still
+  // cut early (above the QR/footer).
+  cutDelayMsPer100Rows: 400,
+  cutDelayMinMs: 500,
   // ESC t code page for plain-text jobs. 16 = WPC1252 (has ë, ç, é...).
   codePage: 16,
   textEncoding: 'latin1',
@@ -54,6 +60,10 @@ const DEFAULTS = {
     pfxFile: '',
     passphrase: 'epos'
   },
+  // The bridge usually runs with no console (scheduled task), so it keeps
+  // its own log. Set logFile to '' to turn the file off.
+  logFile: 'logs/bridge.log',
+  logMaxBytes: 2 * 1024 * 1024,
   logJobs: true,
   // Dump every received XML body to ./logs for debugging.
   dumpPayloads: false
@@ -85,10 +95,67 @@ const config = loadConfig();
 
 // ---------------------------------------------------------------------------
 // Tiny logger
+//
+// The bridge normally runs as a Windows scheduled task with no console, so it
+// keeps its own file too. That log is the main diagnostic tool:
+//   a POST line  -> the client reached the bridge, so any fault is printer-side
+//   silence      -> the request never arrived, so the fault is address or DNS
 // ---------------------------------------------------------------------------
 
-const log = (...args) => console.log(new Date().toISOString(), ...args);
-const warn = (...args) => console.warn(new Date().toISOString(), '!', ...args);
+const LOG_PATH = config.logFile ? path.resolve(__dirname, config.logFile) : null;
+
+let logStream = null;
+let logBytes = 0;
+
+function openLog() {
+  if (!LOG_PATH) return;
+  try {
+    fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
+    try { logBytes = fs.statSync(LOG_PATH).size; } catch (err) { logBytes = 0; }
+    logStream = fs.createWriteStream(LOG_PATH, { flags: 'a' });
+    // A logging problem must never take the bridge down.
+    logStream.on('error', () => { logStream = null; });
+  } catch (err) {
+    logStream = null;
+  }
+}
+
+function writeLog(line) {
+  if (!logStream) return;
+  try {
+    logStream.write(line + '\n');
+    logBytes += Buffer.byteLength(line) + 1;
+    if (logBytes > config.logMaxBytes) {
+      logStream.end();
+      logStream = null;
+      // Keep one previous file; older than that isn't worth the disk.
+      try { fs.renameSync(LOG_PATH, LOG_PATH + '.1'); } catch (err) { /* keep going */ }
+      openLog();
+    }
+  } catch (err) {
+    logStream = null;
+  }
+}
+
+openLog();
+
+function stamp(parts) {
+  return [new Date().toISOString()]
+    .concat(parts.map((p) => (typeof p === 'string' ? p : String(p))))
+    .join(' ');
+}
+
+const log = (...args) => {
+  const line = stamp(args);
+  console.log(line);
+  writeLog(line);
+};
+
+const warn = (...args) => {
+  const line = stamp(['!'].concat(args));
+  console.warn(line);
+  writeLog(line);
+};
 
 // ---------------------------------------------------------------------------
 // ESC/POS byte helpers
@@ -230,10 +297,32 @@ function buildRaster(base64Data, width, height, cfg) {
 // ePOS-Print XML  ->  ESC/POS bytes
 // ---------------------------------------------------------------------------
 
+// Default ESC/POS line spacing (ESC 2) is about 30 dots.
+const FEED_LINE_DOTS = 30;
+
+function cutDelayMs(rows, cfg) {
+  return Math.max(cfg.cutDelayMinMs, Math.round(rows * cfg.cutDelayMsPer100Rows / 100));
+}
+
+// Returns the job as segments; each is sent after waiting its delayMs. A new
+// segment starts at every cut, so the cut waits for the rows before it to print.
 function translate(xml, cfg) {
-  const parts = [CMD.init(), CMD.codePage(cfg.codePage)];
+  const segments = [];
+  let parts = [CMD.init(), CMD.codePage(cfg.codePage)];
+  let delayMs = 0;
+  let rowsSinceCut = 0;
   const stats = { text: 0, images: 0, cuts: 0, pulses: 0, barcodes: 0 };
   let sawCut = false;
+
+  // The feed goes out with the content so the whole ticket leaves the printer
+  // in one motion; only the cut waits, for the image rows and the feed.
+  const startCut = () => {
+    parts.push(CMD.feedLines(cfg.feedLinesBeforeCut));
+    segments.push({ delayMs, bytes: Buffer.concat(parts) });
+    delayMs = cutDelayMs(rowsSinceCut + cfg.feedLinesBeforeCut * FEED_LINE_DOTS, cfg);
+    rowsSinceCut = 0;
+    parts = [cfg.cutType === 'full' ? CMD.cutFull() : CMD.cutPartial()];
+  };
 
   for (const el of parseElements(extractPrintBody(xml))) {
     switch (el.name) {
@@ -265,6 +354,7 @@ function translate(xml, cfg) {
         if (width > 0 && height > 0 && el.text.trim()) {
           parts.push(CMD.align(ALIGN[el.attrs.align] ?? 0));
           parts.push(buildRaster(el.text, width, height, cfg));
+          rowsSinceCut += height;
           stats.images++;
         }
         break;
@@ -279,8 +369,7 @@ function translate(xml, cfg) {
       }
 
       case 'cut': {
-        parts.push(CMD.feedLines(cfg.feedLinesBeforeCut));
-        parts.push(cfg.cutType === 'full' ? CMD.cutFull() : CMD.cutPartial());
+        startCut();
         sawCut = true;
         stats.cuts++;
         break;
@@ -306,12 +395,10 @@ function translate(xml, cfg) {
     }
   }
 
-  if (!sawCut) {
-    parts.push(CMD.feedLines(cfg.feedLinesBeforeCut));
-    parts.push(cfg.cutType === 'full' ? CMD.cutFull() : CMD.cutPartial());
-  }
+  if (!sawCut) startCut();
+  segments.push({ delayMs, bytes: Buffer.concat(parts) });
 
-  return { bytes: Buffer.concat(parts), stats };
+  return { segments, stats };
 }
 
 // ---------------------------------------------------------------------------
@@ -320,7 +407,7 @@ function translate(xml, cfg) {
 
 let printQueue = Promise.resolve();
 
-function sendToPrinter(bytes, cfg) {
+function sendToPrinter(segments, cfg) {
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
     let settled = false;
@@ -339,18 +426,37 @@ function sendToPrinter(bytes, cfg) {
     socket.once('error', (err) => done(err));
 
     socket.connect(cfg.printerPort, cfg.printerHost, () => {
-      socket.write(bytes, () => {
-        // Small grace period so the printer drains its buffer before FIN.
-        setTimeout(() => done(null), 250);
-      });
+      let i = 0;
+      const next = () => {
+        if (settled) return;
+        if (i === segments.length) {
+          // Small grace period so the printer drains its buffer before FIN.
+          setTimeout(() => done(null), 250);
+          return;
+        }
+        const seg = segments[i++];
+        const write = () => {
+          if (settled) return;
+          socket.setTimeout(cfg.connectTimeoutMs);
+          socket.write(seg.bytes, next);
+        };
+        if (seg.delayMs > 0) {
+          // The idle timeout would otherwise fire during this deliberate wait.
+          socket.setTimeout(0);
+          setTimeout(write, seg.delayMs);
+        } else {
+          write();
+        }
+      };
+      next();
     });
   });
 }
 
-function enqueuePrint(bytes, cfg) {
+function enqueuePrint(segments, cfg) {
   const job = printQueue.then(
-    () => sendToPrinter(bytes, cfg),
-    () => sendToPrinter(bytes, cfg)
+    () => sendToPrinter(segments, cfg),
+    () => sendToPrinter(segments, cfg)
   );
   printQueue = job.catch(() => {});
   return job;
@@ -470,12 +576,16 @@ async function handlePrint(req, res, xml) {
 
   if (config.logJobs) {
     const s = translated.stats;
-    log(`job: ${translated.bytes.length} bytes -> ${config.printerHost}:${config.printerPort}`
-      + ` (images:${s.images} textChars:${s.text} cuts:${s.cuts} pulses:${s.pulses})`);
+    const segs = translated.segments;
+    const bytes = segs.reduce((n, seg) => n + seg.bytes.length, 0);
+    const delays = segs.filter((seg) => seg.delayMs > 0).map((seg) => seg.delayMs + 'ms');
+    log(`job: ${bytes} bytes -> ${config.printerHost}:${config.printerPort}`
+      + ` (images:${s.images} textChars:${s.text} cuts:${s.cuts} pulses:${s.pulses}`
+      + ` cutDelay:${delays.join(',')})`);
   }
 
   try {
-    await enqueuePrint(translated.bytes, config);
+    await enqueuePrint(translated.segments, config);
     res.writeHead(200, Object.assign(
       { 'Content-Type': 'text/xml; charset=utf-8' }, corsHeaders(req)
     ));
@@ -603,6 +713,8 @@ server.on('error', (err) => {
 
 server.listen(config.listenPort, config.listenHost, () => {
   const scheme = config.tls.enabled ? 'https' : 'http';
+  log(`started: listening ${scheme}://${config.listenHost}:${config.listenPort}`
+    + ` -> printer ${config.printerHost}:${config.printerPort}`);
   console.log('');
   console.log('  epos-bridge');
   console.log('  ' + '-'.repeat(48));
